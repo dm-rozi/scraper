@@ -7,4 +7,17 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
+  root to: proc { |_env|
+    [
+      200,
+      { 'Content-Type' => 'text/plain; charset=utf-8' },
+      [ 'Battlecruiser operational' ]
+    ]
+  }
+
+  namespace :api do
+    namespace :v1 do
+      get '/data', to: 'data#index'
+    end
+  end
 end
