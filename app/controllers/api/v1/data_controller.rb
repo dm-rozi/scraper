@@ -2,7 +2,9 @@ module Api
   module V1
     class DataController < ApplicationController
       def index
-        render json: "Hey form controller", status: :ok
+        result = ScraperService.call(params[:url], params[:fields])
+
+        render json: result, status: :ok
       end
     end
   end
