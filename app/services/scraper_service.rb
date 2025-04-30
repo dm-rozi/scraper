@@ -8,17 +8,17 @@ class ScraperService < BaseService
     "default" => ->(node) { node.text.strip }
   }.freeze
 
-  attr_reader :url, :fields
+  attr_reader :html, :fields
 
-  def initialize(url, fields)
-    @url = url
+  def initialize(html, fields)
+    @html = html
     @fields = fields
     @errors = []
   end
 
   def call
     {}.tap do |result|
-      if (html = fetch_data)
+      if html
         doc = parse_html(html)
         result.merge!(build_result(doc, fields))
       end
@@ -31,24 +31,10 @@ class ScraperService < BaseService
 
   private
 
-  def fetch_data
-    response = Faraday.get(url)
+  def parse_html(html)
+    return {} if html.nil?
 
-    if response.status != 200
-      @errors << "Failed to fetch data from URL: #{url}. Response status code: #{response.status}"
-      return nil
-    end
-
-    response.body
-  rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
-    @errors << "Connection error: #{e.class}: #{e.message}"
-    nil
-  end
-
-  def parse_html(response)
-    return {} if response.nil?
-
-    Nokogiri::HTML(response)
+    Nokogiri::HTML(html)
   end
 
   def build_result(doc, fields)
