@@ -21,7 +21,7 @@ RSpec.describe ScraperService, type: :service do
       }
     }
 
-    it 'calls the service with correct fields' do
+    it "calls the service with correct fields" do
       fields = {
         "price": ".price-box__primary-price__value",
         "rating_count": ".ratingCount",
@@ -35,7 +35,7 @@ RSpec.describe ScraperService, type: :service do
       expect(result).not_to have_key('errors')
     end
 
-    it 'calls the service with one incorrect selector' do
+    it "calls the service with one incorrect selector" do
       fields = {
         "price": ".price-box__primary-price__value",
         "rating_count": ".ratingCount",
@@ -47,7 +47,7 @@ RSpec.describe ScraperService, type: :service do
       expect(result).to eq(result_with_errors)
     end
 
-    it 'calls the service with meta tag fields' do
+    it "calls the service with meta tag fields" do
       fields = { "meta": [ "keywords", "twitter:image" ] }
       result = ScraperService.call(html, fields)
 
