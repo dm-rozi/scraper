@@ -1,0 +1,2 @@
+class CachedPage < ApplicationRecord
+end
