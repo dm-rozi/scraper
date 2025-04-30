@@ -1,37 +1,52 @@
 # README
 
-Simple rails API app. Give the link for scarapping and CSS selectors as JSON, get JSON with the values in response using Nokogiri gem.
+**Simple Rails API app for scraping HTML pages**  
+Send a link and a set of CSS selectors as a JSON payload — get structured data back as JSON, powered by the Nokogiri gem.
 
+---
 
-Out of scope:
+## ❌ Out of scope
 
-* No any frontend part
-* No any auth features. It could be seperate endpoints for Oauth 2 flow with getting bearer access token.
-* No handling any scraping protection. I suppose this is a partnership service and it has the Cloudfare access token in the header for each request.
-----
+- No frontend part.
+- No authentication. (OAuth2 flow with bearer token support can be added via separate endpoints.)
+- No anti-bot or scraping protection bypassing.  
+  This app assumes access to protected content via partnership — for example, using a Cloudflare access token in request headers.
 
-JSON Request example:
+---
+
+## JSON request example
+
+```http
+GET /api/v1/data
+
+JSON body:
+
+{
+    "url": "https://www.alza.cz/aeg-7000-prosteam-lfr73964cc-d7635493.htm",
+    "fields": {
+        "price": ".price-box__price",
+        "rating_count": ".ratingCount",
+        "rating_value": ".ratingValue"
+    }
+}
 ```
-GET /data
-
-JSON params:
-
-    {
-        "url": "https://www.alza.cz/aeg-7000-prosteam-lfr73964cc-d7635493.htm",
-        "fields": {
-            "price": ".price-box__price",
-            "rating_count": ".ratingCount",
-            "rating_value": ".ratingValue"
-        }
-    }
-
 Response:
-
-    {
-        "price": "18290,-",
-        "rating_value": "4,9",
-        "rating_count": "7 hodnocení"
-    }
+```
+{
+    "price": "18290,-",
+    "rating_value": "4,9",
+    "rating_count": "7 hodnocení"
+}
+```
+Example response with missing selectors:
+```
+{
+    "errors" => "Selector not found: .productTitle",
+    "price" => "19 990,-",
+    "product_title" => nil,
+    "rating_count" => "25 hodnocení",
+    "rating_value" => "4,8"
+}
 ```
 
 
@@ -56,12 +71,12 @@ Response
 }
 ```
 ## Installation
-Dependency - Ruby 3.4
+
+Dependency - requires Ruby 3.4
 
 ```
 bundle
 ```
-
 Database creation, initialization
 
 ```
@@ -69,17 +84,54 @@ bundle exec rails db:create
 bundle exec rails db:migrate
 ```
 
-## Running rspec + rubocop
+## Running tests, linter (rspec + rubocop)
 ```
 make check
-```
-## Running Rubocop
-```
-bundle exec rubocop
 ```
 ## Running app
 ```
 bundle exec rails s
+```
+## Project structure
+```
+scraper/
+├── app/
+│   ├── controllers/
+│   │   └── api/
+│   │       └── v1/
+│   │           └── data_controller.rb
+│   ├── models/
+│   │   └── cached_page.rb
+│   ├── services/
+│   │   ├── base_service.rb
+│   │   ├── page_fetcher_service.rb
+│   │   └── scraper_service.rb
+│   └── validators/
+│       └── data_request_validator.rb
+│
+├── config/
+│   └── routes.rb
+│
+├── db/
+│   ├── migrate/
+│   │   └── ... create_cached_pages.rb
+│   └── schema.rb
+│
+├── spec/
+│   ├── controllers/
+│   │   └── api/v1/data_controller_spec.rb
+│   ├── models/
+│   │   └── cached_page_spec.rb
+│   ├── services/
+│   │   ├── page_fetcher_service_spec.rb
+│   │   └── scraper_service_spec.rb
+│   └── validators/
+│       └── data_request_validator_spec.rb
+│
+├── Makefile
+├── Gemfile
+├── README.md
+└── ...
 ```
 ## Make check report
 ```
