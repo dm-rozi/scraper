@@ -1,6 +1,13 @@
 class ScraperService < BaseService
   class Error < StandardError; end
 
+  # "img" => ->(node) { node["src"].to_s.strip }
+  # "a" => ->(node) { node['href'].to_s.strip }
+  EXTRACTORS = {
+    "meta" => ->(node) { node["content"].to_s.strip },
+    "default" => ->(node) { node.text.strip }
+  }.freeze
+
   attr_reader :url, :fields
 
   def initialize(url, fields)
@@ -10,13 +17,16 @@ class ScraperService < BaseService
   end
 
   def call
-    response = fetch_data
-    result = parse_data(response)
+    {}.tap do |result|
+      if (html = fetch_data)
+        doc = parse_html(html)
+        result.merge!(build_result(doc, fields))
+      end
 
-    result["errors"] = @errors.join(", ") if @errors.any?
-    Rails.logger.info("ScraperService: #{result}")
+      result["errors"] = @errors.join(", ") if @errors.any?
 
-    result
+      Rails.logger.info("ScraperService: #{result}")
+    end
   end
 
   private
@@ -24,7 +34,10 @@ class ScraperService < BaseService
   def fetch_data
     response = Faraday.get(url)
 
-    @errors << "Failed to fetch data from URL: #{url}. Response status code: #{response.status}" if response.status != 200
+    if response.status != 200
+      @errors << "Failed to fetch data from URL: #{url}. Response status code: #{response.status}"
+      return nil
+    end
 
     response.body
   rescue Faraday::ConnectionFailed, Faraday::TimeoutError => e
@@ -32,19 +45,41 @@ class ScraperService < BaseService
     nil
   end
 
-  def parse_data(response)
+  def parse_html(response)
     return {} if response.nil?
 
-    doc = Nokogiri::HTML(response)
-    result = {}
+    Nokogiri::HTML(response)
+  end
 
-    fields.each do |key, selector|
-      element = doc.at_css(selector)
-      result[key] = element ? element.text.strip : nil
+  def build_result(doc, fields)
+    fields.each_with_object({}) do |(key, spec), out|
+      out[key.to_s] =
+        case spec
+        when Hash
+          build_result(doc, spec)
+        when Array
+          spec.each_with_object({}) do |name_attr, group|
+            selector = "meta[name='#{name_attr}']"
+            group[name_attr.to_s] = safe_extract(doc, selector)
+          end
+        else
+          safe_extract(doc, spec)
+        end
     end
+  end
 
-    result
-  rescue StandardError => e
-    @errors << "Failed to parse data: #{e.message}"
+  def safe_extract(doc, selector)
+    extract_field(doc, selector)
+  rescue Error => e
+    @errors << e.message
+    nil
+  end
+
+  def extract_field(doc, selector)
+    node = doc.at_css(selector)
+    raise Error, "Selector not found: #{selector}" unless node
+
+    extractor = EXTRACTORS.fetch(node.name, EXTRACTORS["default"])
+    extractor.call(node)
   end
 end
